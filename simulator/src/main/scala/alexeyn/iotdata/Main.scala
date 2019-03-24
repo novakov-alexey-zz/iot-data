@@ -11,6 +11,7 @@ import cron4s.Cron
 import eu.timepit.fs2cron.schedule
 import fs2.Stream
 import fs2.kafka._
+import upickle.default._
 
 //TODO: this must be a part of configuration file
 object Config {
@@ -34,23 +35,24 @@ object Main extends IOApp {
   }
 }
 
-object Task extends StrictLogging {
+object Task extends StrictLogging with Codecs {
 
-  private def sample[F[_]](id: UUID)(implicit M: MonadError[F, Throwable]): F[Sample] =
-    M.fromOption(SampleGen
+  private def sample[F[_]](id: UUID)(implicit M: MonadError[F, Throwable]) =
+    M.fromOption(DataGen
       .generate(id, System.currentTimeMillis())
       .sample,
       new RuntimeException(s"Failed to generate a sample for $id"))
+
+  private def createMessage(d: Data) = {
+    val record = ProducerRecord(Config.KafkaTopic, d.data.deviceId.toString + d.data.time.toString, write(d))
+    ProducerMessage.one(record)
+  }
 
   def produceSample[F[_] : Applicative](id: UUID, p: KafkaProducer[F, String, String])
                                        (implicit M: MonadError[F, Throwable]): Stream[F, Unit] = for {
     s <- Stream.eval(sample[F](id))
     _ <- Stream.eval(Applicative[F].pure(logger.info(s"$s")))
-
-    record = ProducerRecord(Config.KafkaTopic, s.deviceId.toString + s.time.toString, s.toString)
-    message = ProducerMessage.one(record)
-
-    _ <- Stream.eval(p.produce(message))
+    _ <- Stream.eval(p.produce(createMessage(s)))
   } yield ()
 }
 

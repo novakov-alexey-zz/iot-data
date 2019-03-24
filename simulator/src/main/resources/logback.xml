@@ -16,14 +16,7 @@
     <appender-ref ref="STDOUT"/>
   </appender>
 
-  <!--<appender name="logstash" class="net.logstash.logback.appender.LogstashSocketAppender">-->
-    <!--<host>${LOGSTASH_HOST}</host>-->
-    <!--<port>${LOGSTASH_PORT}</port>-->
-    <!--<customFields>{"msi":"${MSI_INSTANCE}"}</customFields>-->
-  <!--</appender>-->
-
   <root level="INFO">
     <appender-ref ref="ASYNCSTDOUT"/>
-    <!--<appender-ref ref="logstash" />-->
   </root>
 </configuration>

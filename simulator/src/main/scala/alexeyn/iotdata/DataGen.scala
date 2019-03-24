@@ -4,16 +4,16 @@ import java.util.UUID
 
 import org.scalacheck.Gen
 
-object SampleGen {
+object DataGen {
   private val lat = Gen.choose(1, 100f)
   private val long = Gen.choose(1, 100f)
   private val temp = Gen.choose(-100, 100)
 
 
-  def generate(deviceId: UUID, sysTime: Long)(): Gen[Sample] = for {
+  def generate(deviceId: UUID, sysTime: Long)(): Gen[Data] = for {
     t <- temp
     la <- lat
     lo <- long
-  } yield Sample(deviceId, t, Location(la, lo), sysTime)
+  } yield Data(Sample(deviceId, t, Location(la, lo), sysTime))
 
 }

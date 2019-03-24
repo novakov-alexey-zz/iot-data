@@ -17,9 +17,11 @@ lazy val root = (project in file("."))
   .settings(publishArtifact := false)
 
 lazy val `simulator` = project.settings(
-  libraryDependencies ++=  Seq(
-    "eu.timepit" %% "fs2-cron-core" % "0.1.0",
-    "com.ovoenergy" %% "fs2-kafka" % "0.19.4",
+  libraryDependencies ++= Seq(
+    fs2Cron,
+    fs2Kafka,
+    upickle,
+    ujson,
     scalaLogging,
     logbackClassic,
     slf4jApi,
