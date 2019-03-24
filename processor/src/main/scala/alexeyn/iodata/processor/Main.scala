@@ -37,6 +37,7 @@ object Main extends IOApp with StrictLogging {
       logger.info(s"${record.key} -> ${record.value}")
       val req = new IndexRequest(EsIndex, "doc").source(record.value, XContentType.JSON)
       val res = client.index(req, RequestOptions.DEFAULT)
+      logger.info(res.toString)
 
       val failed = res.getShardInfo.getFailed > 0
       failed match {
