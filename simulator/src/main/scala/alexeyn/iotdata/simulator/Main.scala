@@ -1,8 +1,8 @@
-package alexeyn.iotdata
+package alexeyn.iotdata.simulator
 
 import java.util.UUID
 
-import alexeyn.iotdata.Config._
+import Config._
 import cats.{Applicative, MonadError}
 import cats.effect.{ExitCode, IO, IOApp, _}
 import cats.implicits._
@@ -37,29 +37,33 @@ object Main extends IOApp {
 
 object Task extends StrictLogging with Codecs {
 
-  private def sample[F[_]](id: UUID)(implicit M: MonadError[F, Throwable]) =
-    M.fromOption(DataGen
-      .generate(id, System.currentTimeMillis())
-      .sample,
-      new RuntimeException(s"Failed to generate a sample for $id"))
+  private def data[F[_]](id: UUID)(implicit M: MonadError[F, Throwable]) =
+    M.fromOption(
+      DataGen
+        .generate(id, System.currentTimeMillis())
+        .sample,
+      new RuntimeException(s"Failed to generate a data for $id")
+    )
 
   private def createMessage(d: Data) = {
     val record = ProducerRecord(Config.KafkaTopic, d.data.deviceId.toString + d.data.time.toString, write(d))
     ProducerMessage.one(record)
   }
 
-  def produceSample[F[_] : Applicative](id: UUID, p: KafkaProducer[F, String, String])
-                                       (implicit M: MonadError[F, Throwable]): Stream[F, Unit] = for {
-    s <- Stream.eval(sample[F](id))
-    _ <- Stream.eval(Applicative[F].pure(logger.info(s"$s")))
-    _ <- Stream.eval(p.produce(createMessage(s)))
-  } yield ()
+  def produceSample[F[_]: Applicative](id: UUID, p: KafkaProducer[F, String, String])(
+    implicit M: MonadError[F, Throwable]
+  ): Stream[F, Unit] =
+    for {
+      d <- Stream.eval(data[F](id))
+      _ <- Stream.eval(Applicative[F].pure(logger.info(s"$d")))
+      _ <- Stream.eval(p.produce(createMessage(d)))
+    } yield ()
 }
 
 object KafkaProducer {
   private lazy val producerSettings = ProducerSettings[String, String]
     .withBootstrapServers(KafkaBootstrapServer)
 
-  def create[F[_] : ConcurrentEffect]: Stream[F, KafkaProducer[F, String, String]] =
+  def create[F[_]: ConcurrentEffect]: Stream[F, KafkaProducer[F, String, String]] =
     producerStream[F].using(producerSettings)
 }

@@ -1,4 +1,4 @@
-package alexeyn.iotdata
+package alexeyn.iotdata.simulator
 
 import java.util.UUID
 
