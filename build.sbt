@@ -26,6 +26,7 @@ lazy val `simulator` = project.settings(
 
 lazy val `processor` = project.settings(
   libraryDependencies ++= Seq(
+    esClient,
     fs2Kafka,
     scalaLogging,
     logbackClassic,

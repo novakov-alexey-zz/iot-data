@@ -12,6 +12,7 @@ import eu.timepit.fs2cron.schedule
 import fs2.Stream
 import fs2.kafka._
 import upickle.default._
+import scala.language.higherKinds
 
 //TODO: this must be a part of configuration file
 object Config {
@@ -46,7 +47,8 @@ object Task extends StrictLogging with Codecs {
     )
 
   private def createMessage(d: Data) = {
-    val record = ProducerRecord(Config.KafkaTopic, d.data.deviceId.toString + d.data.time.toString, write(d))
+    val key = d.data.deviceId.toString + d.data.time.toString
+    val record = ProducerRecord(Config.KafkaTopic, key, write(d))
     ProducerMessage.one(record)
   }
 
