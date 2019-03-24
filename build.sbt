@@ -26,6 +26,11 @@ lazy val `simulator` = project.settings(
 
 lazy val `processor` = project.settings(
   libraryDependencies ++= Seq(
+    upickle,
+    ujson,
+    circeCore,
+    circeGeneric,
+    circeParser,
     esClient,
     fs2Kafka,
     scalaLogging,

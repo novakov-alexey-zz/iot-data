@@ -14,6 +14,7 @@ object Dependencies extends AutoPlugin {
       val scalaLoggingVersion = "3.9.0"
       val upickleVersion = "0.6.7"
       val esClientVersion = "6.4.2"
+      val circeVersion = "0.9.3"
     }
 
     import DependenciesVersion._
@@ -28,6 +29,10 @@ object Dependencies extends AutoPlugin {
     val fs2Cron = "eu.timepit" %% "fs2-cron-core" % "0.1.0"
     val fs2Kafka = "com.ovoenergy" %% "fs2-kafka" % "0.19.4"
     val esClient = "org.elasticsearch.client" % "elasticsearch-rest-high-level-client" % esClientVersion
+    val ujonCirce = "com.lihaoyi" %% "ujson-circe" % "0.7.1"
+    val circeCore = "io.circe" %% "circe-core" % circeVersion
+    val circeGeneric = "io.circe" %% "circe-generic" % circeVersion
+    val circeParser = "io.circe" %% "circe-parser" % circeVersion
   }
 
 }

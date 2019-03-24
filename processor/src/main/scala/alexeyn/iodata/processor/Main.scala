@@ -1,50 +1,20 @@
 package alexeyn.iodata.processor
 
 import alexeyn.iodata.processor.Config._
-import cats.MonadError
 import cats.data.NonEmptyList
 import cats.effect.{IO, _}
 import cats.implicits._
 import com.typesafe.scalalogging.StrictLogging
-import fs2.{kafka, _}
 import fs2.kafka.{AutoOffsetReset, _}
+import fs2.{kafka, _}
 import org.apache.http.HttpHost
-import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.common.serialization.StringDeserializer
-import org.elasticsearch.action.index.IndexRequest
-import org.elasticsearch.client.{RequestOptions, RestClient, RestHighLevelClient}
-import org.elasticsearch.common.xcontent.XContentType
+import org.elasticsearch.client.{RestClient, RestHighLevelClient}
 
 import scala.concurrent.ExecutionContext
 import scala.language.higherKinds
 
-object Config {
-  val KafkaTopic = "IoT-Data"
-  val KafkaBootstrapServer = "localhost:9092"
-  val KafkaConsumerGroupId = "group"
-  val KafkaMaxConcurrent = 25
-  val EsHost = "localhost"
-  val EsPort = 9200
-  val EsIndex = "samples"
-}
-
 object Main extends IOApp with StrictLogging {
-
-  def processRecord[F[_]](record: ConsumerRecord[String, String], client: RestHighLevelClient)(
-    implicit M: MonadError[F, Throwable]
-  ): F[Unit] =
-    M.catchNonFatal {
-      logger.info(s"${record.key} -> ${record.value}")
-      val req = new IndexRequest(EsIndex, "doc").source(record.value, XContentType.JSON)
-      val res = client.index(req, RequestOptions.DEFAULT)
-      logger.info(res.toString)
-
-      val failed = res.getShardInfo.getFailed > 0
-      failed match {
-        case true => M.raiseError(new RuntimeException(res.getShardInfo.getFailures.to[List].mkString(",")))
-        case _ => M.pure(())
-      }
-    }
 
   override def run(args: List[String]): IO[ExitCode] = {
     val stream = for {
@@ -52,7 +22,7 @@ object Main extends IOApp with StrictLogging {
       kc <- KafkaConsumer.create[IO]
       _ <- kc.stream
         .mapAsync(KafkaMaxConcurrent) { msg =>
-          processRecord[IO](msg.record, es).map(_ => msg)
+          Processor.processRecord[IO](msg.record.value, es).map(_ => msg)
         }
         .map(_.committableOffset)
         .through(commitBatch)
