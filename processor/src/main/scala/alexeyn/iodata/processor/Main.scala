@@ -1,18 +1,16 @@
 package alexeyn.iodata.processor
 
 import alexeyn.iodata.processor.Config._
-import cats.{Applicative, MonadError}
+import cats.MonadError
 import cats.data.NonEmptyList
-import cats.effect._
+import cats.effect.{IO, _}
 import cats.implicits._
 import com.typesafe.scalalogging.StrictLogging
-import fs2.kafka
+import fs2.{kafka, _}
 import fs2.kafka.{AutoOffsetReset, _}
+import org.apache.http.HttpHost
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.common.serialization.StringDeserializer
-import fs2._
-import org.apache.http.HttpHost
-import cats.effect.IO
 import org.elasticsearch.action.index.IndexRequest
 import org.elasticsearch.client.{RequestOptions, RestClient, RestHighLevelClient}
 import org.elasticsearch.common.xcontent.XContentType
@@ -32,23 +30,22 @@ object Config {
 
 object Main extends IOApp with StrictLogging {
 
-  override def run(args: List[String]): IO[ExitCode] = {
+  def processRecord[F[_]](record: ConsumerRecord[String, String], client: RestHighLevelClient)(
+    implicit M: MonadError[F, Throwable]
+  ): F[Unit] =
+    M.catchNonFatal {
+      logger.info(s"${record.key} -> ${record.value}")
+      val req = new IndexRequest(EsIndex, "doc").source(record.value, XContentType.JSON)
+      val res = client.index(req, RequestOptions.DEFAULT)
 
-    def processRecord[F[_]: Applicative](record: ConsumerRecord[String, String], client: RestHighLevelClient)(
-      implicit M: MonadError[F, Throwable]
-    ): F[Unit] =
-      M.catchNonFatal {
-        logger.info(s"${record.key} -> ${record.value}")
-        val req = new IndexRequest(EsIndex, "doc").source(record.value, XContentType.JSON)
-        val res = client.index(req, RequestOptions.DEFAULT)
-
-        val failed = res.getShardInfo.getFailed > 0
-        failed match {
-          case true => M.raiseError(new RuntimeException(res.getShardInfo.getFailures.to[List].mkString(",")))
-          case _ => M.pure(())
-        }
+      val failed = res.getShardInfo.getFailed > 0
+      failed match {
+        case true => M.raiseError(new RuntimeException(res.getShardInfo.getFailures.to[List].mkString(",")))
+        case _ => M.pure(())
       }
+    }
 
+  override def run(args: List[String]): IO[ExitCode] = {
     val stream = for {
       es <- EsClient.create[IO]
       kc <- KafkaConsumer.create[IO]
@@ -81,9 +78,9 @@ object KafkaConsumer {
   def create[F[_]: ConcurrentEffect: ContextShift: Timer]: fs2.Stream[F, KafkaConsumer[F, String, String]] =
     for {
       executionContext <- consumerExecutionContextStream[F]
-      consumer <- consumerStream[F].using(consumerSettings(executionContext))
-      _ <- fs2.Stream.eval(consumer.subscribe(topics))
-    } yield consumer
+      c <- consumerStream[F].using(consumerSettings(executionContext))
+      _ <- fs2.Stream.eval(c.subscribe(topics))
+    } yield c
 }
 
 object EsClient {
